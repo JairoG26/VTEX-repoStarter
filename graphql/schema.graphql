@@ -1,0 +1,12 @@
+type Query {
+  # TODO #8: esta query no recibe argumentos, pero el front envía
+  # productId y postalCode. Agrégalos al schema (y actualiza la firma del
+  # resolver en node/resolvers/estimateShipping.ts).
+  estimateShipping: [ShippingEstimate]
+}
+
+type ShippingEstimate {
+  carrierName: String
+  estimatedDays: Int
+  price: Float
+}
