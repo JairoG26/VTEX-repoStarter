@@ -5,6 +5,7 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "target": "es2017",
+    "types": ["jest"],
     "noEmit": true,
     "skipLibCheck": true
   },

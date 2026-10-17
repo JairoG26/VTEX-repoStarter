@@ -11,11 +11,14 @@ type Context = ServiceContext<Clients>
 export async function health(ctx: Context, next: () => Promise<unknown>) {
   try {
     await ctx.clients.shippingMock.ping()
-    ctx.status = 201
-    ctx.body = 'ok'
-  } catch (error) {
     ctx.status = 200
-    ctx.body = { status: 'down', error }
+    ctx.body = { status: 'ok' }
+  } catch (error) {
+    ctx.status = 503
+    ctx.body = {
+      status: 'down',
+      error: error instanceof Error ? error.message : String(error),
+    }
   }
 
   await next()

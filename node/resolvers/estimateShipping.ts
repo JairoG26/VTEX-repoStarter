@@ -4,29 +4,93 @@ import type { Clients } from '../clients'
 
 type Context = ServiceContext<Clients>
 
-// TODO #8: actualizar la firma para recibir { productId, postalCode }
-// como argumentos tipados, una vez agregados al schema GraphQL.
+interface Args {
+  productId: string
+  postalCode: string
+}
+
+interface ShippingEstimate {
+  carrierName: string
+  estimatedDays: number
+  price: number
+}
+
+const CACHE_TTL_MS = 5 * 60 * 1000
+const CACHE_MAX_ENTRIES = 500
+
+// Caché en memoria del proceso: Map con expiración y tope de tamaño
+const cache = new Map<string, { value: ShippingEstimate[]; expiresAt: number }>()
+
+function getCached(key: string) {
+  const entry = cache.get(key)
+
+  if (!entry) return undefined
+  if (entry.expiresAt < Date.now()) {
+    cache.delete(key)
+
+    return undefined
+  }
+
+  return entry.value
+}
+
+function setCached(key: string, value: ShippingEstimate[]) {
+  cache.delete(key) // reinsertar para que quede como la más reciente
+
+  if (cache.size >= CACHE_MAX_ENTRIES) {
+    const oldest = cache.keys().next().value
+
+    if (oldest !== undefined) cache.delete(oldest)
+  }
+
+  cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS })
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timeout tras ${ms} ms`)), ms)
+  })
+
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
 export const estimateShipping = async (
   _root: unknown,
-  _args: unknown,
+  { productId, postalCode }: Args,
   ctx: Context
-) => {
-  // Valores fijos mientras el schema no recibe argumentos.
-  const productId = '1'
-  const postalCode = '110111'
+): Promise<ShippingEstimate[]> => {
+  const key = `${productId}:${postalCode}`
+  const cached = getCached(key)
 
-  // TODO #9: implementación incompleta.
-  //  - No hay timeout: si el servicio externo tarda, la PDP queda esperando.
-  //  - No hay manejo de errores: cualquier falla del servicio se propaga tal cual.
-  //  - No hay fallback: el front no recibe nada útil si el servicio cae.
-  //  - No hay caching: cada render de la PDP genera una llamada externa.
-  //  Implementa estos cuatro puntos y justifica tu estrategia de caching
-  //  en RESPUESTAS.md.
-  const quotes = await ctx.clients.shippingMock.getQuotes(productId, postalCode)
+  if (cached) return cached
 
-  return quotes.map((quote) => ({
-    carrierName: quote.carrier,
-    estimatedDays: quote.days,
-    price: quote.cost,
-  }))
+  try {
+    const quotes = await ctx.clients.shippingMock.getQuotes(productId, postalCode)
+
+    const estimates = (quotes ?? []).map((quote) => ({
+      carrierName: quote.carrier,
+      estimatedDays: quote.days,
+      price: quote.cost,
+    }))
+
+    // Solo cacheamos respuestas útiles; ni errores ni listas vacías
+    if (estimates.length > 0) setCached(key, estimates)
+
+    return estimates
+  } catch (error) {
+    ctx.vtex.logger.warn({
+      message: 'estimateShipping falló, devolviendo fallback',
+      productId,
+      postalCode,
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    return []
+  }
 }

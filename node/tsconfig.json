@@ -5,6 +5,7 @@
     "moduleResolution": "node",
     "module": "commonjs",
     "target": "es2019",
+    "types": ["node", "jest"],
     "noEmit": true,
     "skipLibCheck": true
   },
