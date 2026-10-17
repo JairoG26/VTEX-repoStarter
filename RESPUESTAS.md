@@ -1,7 +1,7 @@
 # Respuestas — VTEX IO Challenge
 
 **Nombre:** Jairo Alberto Garavito Correa
-**Tiempo aproximado invertido:**
+**Tiempo aproximado invertido:** 4 horas
 
 > Para cada tarea, explica brevemente qué cambiaste y por qué. Si no alcanzaste a implementar alguna, describe cómo la resolverías.
 
@@ -64,7 +64,7 @@
 
 ### 10. Health check (`health.ts`)
 
-El endpoint devolvía 201 cuando el servicio respondía y 200 cuando no, así que un monitor creería que todo estaba bien con el servicio caído. Además, el body era un texto en un caso y un objeto en el otro. Ahora devuelve 200 con `{ status: 'ok' }` si `ping()` funciona y 503 con `{ status: 'down', error }` si falla, siempre como JSON. Uso `error.message` porque un `Error` se serializa como `{}` en JSON. Como el client ahora tiene timeout de 1.5 s y sin reintentos, `un ping()` colgado falla antes del límite de 2 s de la plataforma y el 503 sí llega a enviarse. En producción ocultaría el detalle del error y lo dejaría solo en logs.
+**Solución:** El endpoint devolvía 201 cuando el servicio respondía y 200 cuando no, así que un monitor creería que todo estaba bien con el servicio caído. Además, el body era un texto en un caso y un objeto en el otro. Ahora devuelve 200 con `{ status: 'ok' }` si `ping()` funciona y 503 con `{ status: 'down', error }` si falla, siempre como JSON. Uso `error.message` porque un `Error` se serializa como `{}` en JSON. Como el client ahora tiene timeout de 1.5 s y sin reintentos, un `ping()` colgado falla antes del límite de 2 s de la plataforma y el 503 sí llega a enviarse. En producción ocultaría el detalle del error y lo dejaría solo en logs.
 
 ---
 
